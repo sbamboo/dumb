@@ -288,6 +288,12 @@ Converts the content of RESULT to the eqvivelent number char and returns to RESU
 
 `FINT`<br>
 Converts a character byte to numeralbyte. (Content of RESULT to equiv hexnum and returns to RESULT)
+
+`TBOl`<br>
+Interprites the RESULT to BOOL placed to RESULT.
+
+`FBOl`<br>
+Interprites the RESULT from BOOL placed to RESULT.
 <br><br>
 
 `REVS`<br>
@@ -431,7 +437,7 @@ Split the stack at the first entry of 0x01 and return the before-content to RESU
 `SPLA 0x01`<br>
 Split the stack at the first entry of 0x01 and return the after-content to RESULT.
 
-#### TODO
+## TODO
 - ☑ Add advanced formatting support to interpriter.
 - ☐ Implement `ARGS`, `SPLT`, `SPLB` and `SPLA`.
 - ☐ Move commands into a CONF-flag for the `Extended-Method Set`.
