@@ -1,0 +1,9 @@
+.source
+LOCK 0xFF       # Sets the stack size to 255 addresses
+FILL 0x00       # Fills the stack with NULL chars
+
+WPOK 0x0C 0x00 0x48 0x65 0x6C 0x6C 0x6F 0x20 0x77 0x6F 0x72 0x6C 0x64 0x21 # Walk-Pokes 12 (0x0C) amount of chars starting at pos.0
+                                                                           #   with the chars: H e l l o " " w o r l d !
+                                                                           
+WALK 0x00 0x0B  # Walks over pos.0 to pos.11 into RESULT-BUFFER
+PRES            # Prints the RESULT-BUFFER to terminal

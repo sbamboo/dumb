@@ -1,0 +1,19 @@
+.source
+LOCK 0xFF       # Sets the stack size to 255 addresses
+FILL 0x00       # Fills the stack with NULL chars
+
+POKE 0x00 0x48  # Puts "H" into pos.0
+POKE 0x01 0x65  # Puts "e" into pos.1
+POKE 0x02 0x6C  # Puts "l" into pos.2
+POKE 0x03 0x6C  # Puts "l" into pos.3
+POKE 0x04 0x6F  # Puts "o" into pos.4
+POKE 0x05 0x20  # Puts " " into pos.5
+POKE 0x06 0x77  # Puts "w" into pos.6
+POKE 0x07 0x6F  # Puts "o" into pos.7
+POKE 0x08 0x72  # Puts "r" into pos.8
+POKE 0x09 0x6C  # Puts "l" into pos.9
+POKE 0x0A 0x64  # Puts "d" into pos.10
+POKE 0x0B 0x21  # Puts "!" into pos.11
+
+WALK 0x00 0x0B  # Walks over pos.0 to pos.11 into RESULT-BUFFER
+PRES            # Prints the RESULT-BUFFER to terminal
