@@ -436,3 +436,22 @@ Split the stack at the first entry of 0x01 and return the after-content to RESUL
 - ☐ Implement `ARGS`, `SPLT`, `SPLB` and `SPLA`.
 - ☐ Move commands into a CONF-flag for the `Extended-Method Set`.
 - ☐ Reorder commands. **(Will change adresses!)**
+- ☐ Graphics Mode with: (Under `Graphics-Method Set`)
+  `GBIT <width> <height>` (GraphicsBufferInit)
+    Adds W*H adresses to the stack, disables LOCK until `GBPU`.
+    Adresses are mapped to x,y in a zig-zag pattern.
+  `GBCL` (GraphicsBufferClear)
+    Clears the added adresses.
+  `GBPK <x> <y> <val>` (GraphicsBufferPoke)
+    Pokes an adress based on its equivelent x,y position.
+  `GBPE <x> <y>` (GraphicsBufferPeek)
+    Gets the content at an adress based on its equivelent x,y position.
+  `GPSM <modeIndex>` (GraphicsBufferSetMode)
+    Modes are:
+    - `0x00`: Char / HalfWidth (Char is drawn as normal)
+    - `0x01`: Double (Text is drawn on everyother cell)
+    - `0x02`: HighRes (Text is drawn if same char under itself at same y)
+  `GBDR` (GraphicsBufferDraw)
+    Draws the buffer.
+  `GBPU` (GameBufferPurge)
+    Purges the buffer.
