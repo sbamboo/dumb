@@ -443,16 +443,21 @@ Split the stack at the first entry of 0x01 and return the after-content to RESUL
 - ☐ Move commands into a CONF-flag for the `Extended-Method Set`.
 - ☐ Reorder commands. **(Will change adresses!)**
 - ☐ Graphics Mode with: (Under `Graphics-Method Set`)
-  `GBIT <width> <height>` (GraphicsBufferInit)
+  `GBI1 <width> <height>` (GraphicsBufferInit_Mode1)
     Adds W*H adresses to the stack, disables LOCK until `GBPU`.
     Adresses are mapped to x,y in a zig-zag pattern.
+    Mode1: "Palette" 1byte/cell, allows text, only paletted colors 
+  `GBI2 <width> <height>` (GraphicsBufferInit_Mode2)
+    Adds W*H adresses to the stack, disables LOCK until `GBPU`.
+    Adresses are mapped to x,y in a zig-zag pattern.
+    Mode1: "8bit" 1byte/cell, only colors no text, but uses al 256 8bit colors.
   `GBCL` (GraphicsBufferClear)
     Clears the added adresses.
   `GBPK <x> <y> <val>` (GraphicsBufferPoke)
     Pokes an adress based on its equivelent x,y position.
   `GBPE <x> <y>` (GraphicsBufferPeek)
     Gets the content at an adress based on its equivelent x,y position.
-  `GPSM <modeIndex>` (GraphicsBufferSetMode)
+  `GPSM <drawModeIndex>` (GraphicsBufferSetDrawMode)
     Modes are:
     - `0x00`: Char / HalfWidth (Char is drawn as normal)
     - `0x01`: Double (Text is drawn on everyother cell)
