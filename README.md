@@ -441,28 +441,47 @@ Split the stack at the first entry of 0x01 and return the after-content to RESUL
 - ☑ Add advanced formatting support to interpriter.
 - ☐ Implement `ARGS`, `SPLT`, `SPLB` and `SPLA`.
 - ☐ Move commands into a CONF-flag for the `Extended-Method Set`.
+  ``CONF 0x01`
 - ☐ Reorder commands. **(Will change adresses!)**
 - ☐ Graphics Mode with: (Under `Graphics-Method Set`)
+  Enabled via `CONF 0x02`.
   `GBI1 <width> <height>` (GraphicsBufferInit_Mode1)
     Adds W*H adresses to the stack, disables LOCK until `GBPU`.
     Adresses are mapped to x,y in a zig-zag pattern.
-    Mode1: "Palette" 1byte/cell, allows text, only paletted colors 
+    Mode1: "Palette" 1byte/cell, allows text, only paletted colors at max of 37 entries.
   `GBI2 <width> <height>` (GraphicsBufferInit_Mode2)
     Adds W*H adresses to the stack, disables LOCK until `GBPU`.
     Adresses are mapped to x,y in a zig-zag pattern.
-    Mode1: "8bit" 1byte/cell, only colors no text, but uses al 256 8bit colors.
+    Mode2: "8bit" 1byte/cell, only colors no text, but uses al 256 8bit colors.
+  `GBI3 <width> <height>` (GraphicsBufferInit_Mode3)
+    Adds W*H adresses to the stack, disables LOCK until `GBPU`.
+    Adresses are first one byte for the topleft cell, then width-1 bytes for the width,
+    and finally height-1 bytes for the height.
+    Followed by (W*H)-(height-1+width-1) bytes for content,
+    allowing poking of characters to buffer except for first row and column,
+    one byte is also for setting the poked-chars color.
+    This mode creates a color-matrix where the colors are mixed and any poked text is placed over the color.
+    Mode4: "8bit" 1byte/cell, color matrix with text.
   `GBCL` (GraphicsBufferClear)
     Clears the added adresses.
   `GBPK <x> <y> <val>` (GraphicsBufferPoke)
     Pokes an adress based on its equivelent x,y position.
   `GBPE <x> <y>` (GraphicsBufferPeek)
     Gets the content at an adress based on its equivelent x,y position.
-  `GPSM <drawModeIndex>` (GraphicsBufferSetDrawMode)
+  `GPDM <drawModeIndex>` (GraphicsBuffer_SetDrawMode)
     Modes are:
     - `0x00`: Char / HalfWidth (Char is drawn as normal)
     - `0x01`: Double (Text is drawn on everyother cell)
     - `0x02`: HighRes (Text is drawn if same char under itself at same y)
+      HighRes is not avaliable for BufferMode3.
+  `GBCM <colorFilterIndex>`(GraphicsBuffer_SetColorFilterMode)
+    Modes are:
+    - `0x00`: GrayScale
+    - `0x01`: Inverted
+    ColorFilterMode applies to text in BufferMode3 but not in BufferMode1!
+  `GBAR` (GraphicsBuffer_TerminalAutoSize)
+    Automatically attempts to resize the terminal to the min-width required by the BufferSize and BufferDrawMode.
   `GBDR` (GraphicsBufferDraw)
-    Draws the buffer.
-  `GBPU` (GameBufferPurge)
-    Purges the buffer.
+    Draws the buffer. (ClearChar entries will be skipped/Empty)
+  `GBPU` (GraphicsBufferPurge)
+    Purges the buffer. (Removing it from stack)
