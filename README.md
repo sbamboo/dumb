@@ -71,13 +71,13 @@ Some blobstore entries are filled in by the interpriter and are not *usually* ad
 - `BlobStore.5` is *usually* a preset filename.
 
 The blobstore entries are sepparated by a `0x07` byte followed by one config-byte for telling what the entry is.
-The first two bits in the config-byte tells its type:
-- `00`: A filepath.
-- `01`: A function. ("void")
-- `10`: A method registry.
-- `11`: A result blob.
+The first four bits in the config-byte tells its type:
+- `0000`: A filepath.
+- `0001`: A function. ("void")
+- `0010`: A method registry.
+- `0011`: A result blob.
 
-The following six bits are configuration *flags*/*modes* for the blob, example how it should be read.
+The following four bits are configuration *flags*/*modes* for the blob, example how it should be read.
 
 **NOTE! Since the `0x07` byte is used a sepparator no data in the *BlobStore* can contain the byte, this means 0x17 is not a valid command-adress, and *Voids* will be stored encoded in *Base64*.**
 
@@ -195,6 +195,12 @@ Returns the max-lenght of the current STACK to RESULT.
 
 `GRES Px00,Px06`<br>
 Puts al the content from RESULT into the current stack until end, or if end is same as front truncated till stack-end.
+
+`GTRT`<br>
+Truncates any ClearChar from RESULT's end, and puts the truncated value into RESULT.
+
+`GTST`<br>
+Truncates any ClearChar from STACK's end, and puts the truncated value into RESULT.
 <br><br>
 
 `DICE 0x01,0x06`<br>
@@ -233,6 +239,12 @@ Calls lines stored in BLOB-INDEX.0
 
 `JPAT Sx01,Sx02,Sx03`<br>
 Joins the paths in 01 and 02 to 03.
+
+`JPAR Sx01,Sx03`<br>
+Joins the first path with RESULT to 03.
+
+`JPRA Sx02,Sx03`<br>
+Joins the RESULT with the first path to 03.
 <br><br>
 
 `HACK`<br>
@@ -311,6 +323,15 @@ CALLS void at Ix00 if STACK.0 > STACK.1
 
 `IFLT Ix00,Px00,Px01`<br>
 CALLS void at Ix00 if STACK.0 < STACK.1
+
+`IFNV Ix00,0x00`<br>
+CALLS void at Ix00 if 0x00 in STACK.
+
+`IFNR Ix00,0x00`<br>
+CALLS void at Ix00 if 0x00 in RESULT.
+
+`IFNS Ix00`<br>
+CALLS void at Ix00 if RESULT in STACK.
 <br><br>
 
 `FORP Ix00,Px00`<br>
@@ -372,10 +393,16 @@ Checks if the file from Sx06 exists and returns 0 or 1 to pos.0
 `EXIR Sx06`<br>Checks if the file from Sx06 exists and returns 0 or 1 to RESULT.
 
 `REMA Sx06`<br>
-Removes the filepath in Sx06. (asks if exists)
+Removes the filepath in Sx06. (asks for confirm)
 
 `REMF Sx06`<br>
 Removes the filepath in Sx06. (forced)
+
+`TCHA Sx06`<br>
+Creates an empty file in Sx06. (asks if exists)
+
+`TCHF Sx06`<br>
+Creates an empty file in Sx06. (forced)
 
 `WRTE Sx06`<br>
 Writes the stack to the file in Sx06 as raw bytes.
@@ -388,6 +415,7 @@ Writes the RESULT to the file in Sx06 as raw bytes.
 
 `READ Ix07,Sx06`<br>
 Reads the content of the file in Sx06 as raw bytes to Ix07.
+The first byte of the content is assumed to be the BlobStore-Config byte.
 
 `REDR Sx06`<br>
 Reads the content of the file in Sx06 as raw bytes to RESULT.
@@ -439,12 +467,48 @@ Split the stack at the first entry of 0x01 and return the after-content to RESUL
 
 ## TODO
 - ☑ Add advanced formatting support to interpriter.
-- ☐ Implement `ARGS`, `SPLT`, `SPLB` and `SPLA`.
-- ☐ Move commands into a CONF-flag for the `Extended-Method Set`.
+- ☐ Implement `ARGS`.
+- ☐ Move commands into a config-flag for the `Extended-Method Set`.
   ``CONF 0x01`
 - ☐ Reorder commands. **(Will change adresses!)**
-- ☐ Graphics Mode with: (Under `Graphics-Method Set`)
+- ☐ Input set (Under `Input-Method Set`, keypress may include other input devices, if mappable to a hex byte.)
   Enabled via `CONF 0x02`.
+  CurrentlyPressedKeyBuffer
+    `KPBI <pos> <len>` (KeypressBufferInit)
+      Inits a buffer for the keys which are currently pressed.
+      NOTE! Unalike the graphics-set the keyboard-buffer is placed into the STACK,
+        starting at pos.
+        The length should be how consecutive keypresses you would like to react to.
+      Dosen't clear the stack-section, use `KPBC` for that,
+      this functionallity does however allow one to inject-keys,
+      or load a section as a buffer after changing STACK.
+    `KPBC` (KeypressBufferClear)
+      Clears the keypress-buffer.
+    `KPBG` (KeypressBufferGetall)
+      Gets the content from the keypress-buffer into result.
+    `KPIN <dynlen>,<bytes>...` (KeypressBufferIncludes)
+      \[Dynamic-Param-Length-Method\]
+      Check if the keypress-buffer includes a combination and returns 0x00/0x01 to result.
+  LastPressedKeys
+    `KLPI <pos> <len>` (LastKeypressInit)
+      NOTE! Unalike the graphics-set the last-keypress is a small buffer,
+        placed into the STACK starting at pos.
+        The length should be how many keypresses you would like to store. (max)
+      Dosen't clear the stack-section, use `KLPC` for that,
+      this functionallity does however allow one to inject-keys,
+      or load a section as a buffer after changing STACK.
+    `KLPC` (LastKeypressClear)
+      Clears the last-keypress buffer.
+    `KLPG` (LastKeypressGetall)
+      Gets the content from the last-keypress buffer into result.
+    `KLIN <dynlen>,<bytes>...` (LastKeypressIncludes)
+      \[Dynamic-Param-Length-Method\]
+      Check if the last-keypress buffer includes a combination and returns 0x00/0x01 to result.
+  OnKeycombInterupt
+    `RKPI <dynlen>,<void-blobindex>,<bytes>...` (RegisterKeycombInterupt)
+      Registers a void to be called when a keycombination is found in the KeypressBuffer.
+- ☐ Graphics Mode with: (Under `Graphics-Method Set`)
+  Enabled via `CONF 0x03`.
   `GBI1 <width> <height>` (GraphicsBufferInit_Mode1)
     Adds W*H adresses to the stack, disables LOCK until `GBPU`.
     Adresses are mapped to x,y in a zig-zag pattern.
@@ -466,6 +530,10 @@ Split the stack at the first entry of 0x01 and return the after-content to RESUL
     Clears the added adresses.
   `GBPK <x> <y> <val>` (GraphicsBufferPoke)
     Pokes an adress based on its equivelent x,y position.
+  `GBPX <x>` (GraphicsBufferPoke_Column)
+    Pokes the values equivient to the column x into RESULT.
+  `GBPY <y>` (GraphicsBufferPoke_Row)
+    Pokes the values equivient to the row x into RESULT.
   `GBPE <x> <y>` (GraphicsBufferPeek)
     Gets the content at an adress based on its equivelent x,y position.
   `GPDM <drawModeIndex>` (GraphicsBuffer_SetDrawMode)
@@ -485,3 +553,17 @@ Split the stack at the first entry of 0x01 and return the after-content to RESUL
     Draws the buffer. (ClearChar entries will be skipped/Empty)
   `GBPU` (GraphicsBufferPurge)
     Purges the buffer. (Removing it from stack)
+- ☐ Device Management (Under `Device-Method Set`)
+  Enabled via `CONF 0x04`.
+  `LDVT` (ListDevicesAsText)
+    Lists the devices to terminal, similar to info.
+  `LDVR` (ListDevicesToResult)
+    List devices to result.
+  `SDEV <i>` (SelectDevice)
+    Selects a device to use.
+  `LDPT` (ListDeviceProgramsAsText)
+    List the programms on the selected device, similar to info.
+  `LDPR` (ListProgramsOnDevice)
+    List the programms on the selected device.
+  `CPRG <i>` (CallProgram)
+    Call a program on the selected device.

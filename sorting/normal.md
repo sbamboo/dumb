@@ -23,6 +23,7 @@ DELR
 
 :result
 GRES
+GTRT
 CRES
 LRES
 TINT
@@ -49,6 +50,9 @@ IFIS
 IFNO
 IFGT
 IFLT
+IFNV
+IFNR
+IFNS
 
 :interators
 FORP
@@ -71,10 +75,14 @@ MODS
 
 :filepaths
 JPAT
+JPAR
+JPRA
 
 :file-operations
 REMA
 REMF
+TCHA
+TCHF
 WRTE
 WRTS
 WRTR

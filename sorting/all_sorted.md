@@ -29,6 +29,7 @@ FINO
 SPLT
 SPLB
 SPLA
+GTST
 
 :result
 GRES

@@ -3,6 +3,15 @@ import os,sys,base64,random,time,argparse,re,subprocess
 from _helpers import *
 import _libConUtils as lcu
 
+def intep_text(x):
+    xs = x.split(" ")
+    pos = int(xs[0][2:],16)
+    for byte in strToBytes( ' '.join(xs[1:]) ):
+        if pos < len(STACK):
+            STACK[pos] = byte
+            pos += 1 
+        else:
+            break
 
 def NULL(probe):
     print(probe)
@@ -23,8 +32,9 @@ def FILL(hexchar):
 
 def FAKE(pathindex):
     global STACK, STACKLEN, BUFFER_STACK
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     path = os.path.abspath(path)
     if os.path.exists(path):
         TYPE,VERS,CONF,DATA,_ = readDumbFile(path)
@@ -38,7 +48,9 @@ def FAKE(pathindex):
         STACKLEN = len(nstack)
 
 def EXPR(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     TYPE =                        '0' # X
     VERS = format(COMP_FILEVER,'03b') # XXX
     CONF =                     '0000' # XXXX
@@ -131,6 +143,32 @@ def GRES(pos1,pos2):
                 STACK[pos] = byte
             pos +=1
 
+def GTRT():
+    res = reversed(get_result())
+    new = bytes([])
+    found_non_cl = False
+    for byte in res:
+        if found_non_cl == False:
+            if byte != STACK_CLEAR:
+                found_non_cl = True
+                new = new + byte
+        else:
+            new = new + byte
+    set_result(reversed(new))
+
+def GTST():
+    res = reversed(STACK)
+    new = bytes([])
+    found_non_cl = False
+    for byte in res:
+        if found_non_cl == False:
+            if byte != STACK_CLEAR:
+                found_non_cl = True
+                new = new + byte
+        else:
+            new = new + byte
+    set_result(reversed(new))
+
 def DICE(hexnumber1,hexnumber2):
     set_result(bytes([random.randint(hexnumber1,hexnumber2)]))
 
@@ -163,15 +201,20 @@ def VEND(blobindex):
     if blobindex <= 0x05:
         raise Exception("VOID adressables must be more then 0x05!")
     global BLOBSTORE, CURRENT_VOID
+    # Make a bytes object with 0x17 as line-sep
     BYTES = bytes([])
     for x in CURRENT_VOID:
         BYTES = BYTES + bytes([0x17]) + safe_bytes(bytes([*x]))
     BYTES = BYTES.replace(bytes([0x17]),bytes([]),1)
-    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,blobindex,safe_bytes(BYTES))
+    # Safe the bytes to the line-sep 0x17 dosen't get handled as a blobstore-sep byte.
+    newbytes = safe_bytes(BYTES)
+    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,blobindex,bytes([0b0001_0000]),newbytes)
+    #                                                                 ^type^conf
     CURRENT_VOID = None
 
 def CALL(blobindex):
-    raw = unsafe_bytes(REGI.get_blobstore_entry(BLOBSTORE,blobindex))
+    _,bts = REGI.get_blobstore_entry(BLOBSTORE,blobindex)
+    raw = unsafe_bytes(bts)
     lines = raw.split(bytes([0x17]))
     for line in lines:
         line = unsafe_bytes(line)
@@ -181,12 +224,16 @@ def JPAT(pathindex1,pathindex2,pathindex3):
     if pathindex3 <= 0x05:
         raise Exception("PATH adressables must be more then 0x05!")
     global BLOBSTORE
-    path1 = REGI.get_blobstore_entry(BLOBSTORE,pathindex1).decode(ENCODING)
-    path2 = REGI.get_blobstore_entry(BLOBSTORE,pathindex2).decode(ENCODING)
+    _,path1 = REGI.get_blobstore_entry(BLOBSTORE,pathindex1)
+    _,path2 = REGI.get_blobstore_entry(BLOBSTORE,pathindex2)
 
-    path3 = os.path.join(path1,path2)
+    path3 = os.path.join(
+        path1.decode(ENCODING),
+        path2.decode(ENCODING)
+    )
 
-    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,pathindex3,path3.encode(ENCODING))
+    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,pathindex3,bytes([0b0000_0000]),path3.encode(ENCODING))
+    #                                                                  ^type^conf
 
 def HACK():
     BYTES = get_result()
@@ -293,6 +340,18 @@ def IFGT(blobindex,pos1,pos2):
 
 def IFLT(blobindex,pos1,pos2):
     if STACK[pos1] < STACK[pos2]:
+        CALL(blobindex)
+
+def IFNV(blobindex,value):
+    if value in STACK:
+        CALL(blobindex)
+
+def IFNR(blobindex,value):
+    if value in get_result():
+        CALL(blobindex)
+    
+def IFNS(blobindex):
+    if get_result() in STACK:
         CALL(blobindex)
 
 def FORP(blobindex,pos):
@@ -432,10 +491,11 @@ def SWPB(blobindex1,blobindex2):
     if blobindex1 <= 0x05 or blobindex2 <= 0x05:
         raise Exception("SWAP adressables must be more then 0x05!")
     global BLOBSTORE
+    # No config-bytes are added here since we are swapping full entries
     bic1 = REGI.get_blobstore_entry(BLOBSTORE,blobindex1)
     bic2 = REGI.get_blobstore_entry(BLOBSTORE,blobindex2)
-    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,blobindex1,bic2)
-    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,blobindex2,bic1)
+    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,*bic2)
+    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,*bic1)
 
 def SHFT(amnt):
     global STACK
@@ -454,38 +514,64 @@ def UFTN(amnt):
     STACK = unshiftListNonOverlap(STACK,amnt,STACK_CLEAR)
 
 def EXIS(pos,pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if os.path.exists(path):
         STACK[pos] = 1
     else:
         STACK[pos] = 0
 
 def EXIR(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if os.path.exists(path):
         set_result(bytes([1]))
     else:
         set_result(bytes([0]))
 
 def REMA(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if os.path.exists(path):
         i = input(f"Are you sure you want to remove {os.path.basename(path)}? [Y/N] ")
         if i.strip().lower() == "y":
             os.remove(path)
 
 def REMF(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if os.path.exists(path):
         os.remove(path)
 
+def TCHA(pathindex):
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
+    if os.path.exists(path):
+        i = input(f"{os.path.basename(path)} already exists, do you want to overwrite it? [Y/N] ")
+        if i.strip().lower() == "y":
+            with open(path,'w',encoding=ENCODING) as file:
+                file.close()
+    else:
+        with open(path,'w',encoding=ENCODING) as file:
+            file.close()
+
+def TCHF(pathindex):
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
+    if os.path.exists(path): os.remove(path)
+    with open(path,'w',encoding=ENCODING) as file:
+        file.close()
+
 def WRTE(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     with open(path, 'wb') as f:
         BYTES = bytes([])
         for byte in STACK:
@@ -494,8 +580,9 @@ def WRTE(pathindex):
         f.close()
 
 def WRTS(pathindex,pos1,pos2):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if pos1 < len(STACK) and pos2 < len(STACK):
         with open(path, 'wb') as f:
             BYTES = bytes([])
@@ -505,28 +592,31 @@ def WRTS(pathindex,pos1,pos2):
             f.close()
 
 def WRTR(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     with open(path, 'wb') as f:
         f.write(get_result())
         f.close()
 
 def READ(blobindex,pathindex):
     global BLOBSTORE
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if not os.path.exists(path):
         raise FileNotFoundError(f"File {os.path.basename(path)} is not found!")
     BYTES = bytes([])
     with open(path,'rb') as f:
         BYTES = f.read()
         f.close()
-    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,blobindex,BYTES)
+    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,blobindex,bytes([]),BYTES) # conf assumed to be included in BYTES
 
 def REDR(pathindex):
     global BLOBSTORE
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if not os.path.exists(path):
         raise FileNotFoundError(f"File {os.path.basename(path)} is not found!")
     BYTES = bytes([])
@@ -536,8 +626,9 @@ def REDR(pathindex):
     set_result(BYTES)
 
 def APEW(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if not os.path.exists(path):
         raise FileNotFoundError(f"File {os.path.basename(path)} is not found!")
     with open(path, 'ab') as f:
@@ -548,8 +639,9 @@ def APEW(pathindex):
         f.close()
 
 def APES(pathindex,pos1,pos2):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if not os.path.exists(path):
         raise FileNotFoundError(f"File {os.path.basename(path)} is not found!")
     if pos1 < len(STACK) and pos2 < len(STACK):
@@ -561,8 +653,9 @@ def APES(pathindex,pos1,pos2):
             f.close()
 
 def APER(pathindex):
-    path = REGI.get_blobstore_entry(BLOBSTORE,pathindex).decode(ENCODING)
-    path = re.sub(r'[^\x20-\x7E]', '', path)
+    _,path = REGI.get_blobstore_entry(BLOBSTORE,pathindex)
+    path = path.decode(ENCODING)
+    #path = re.sub(r'[^\x20-\x7E]', '', path)
     if not os.path.exists(path):
         raise FileNotFoundError(f"File {os.path.basename(path)} is not found!")
     with open(path, 'ab') as f:
@@ -619,6 +712,7 @@ def FINO(value):
     if index != None:
         set_result( bytes([index]) )
 
+# MARK:PREDEF
 
 FRIENDLY_VERSION = "0.0"
 ENCODING = "ascii"
@@ -631,21 +725,21 @@ CURRENT_VOID = None
 ITERATING_VOID = None
 ITERATING_INDEX = 0
 BLOBSTORE = bytes([
-    0x17, 0b10_000000,
+    0x17, 0b0010_0000,
 #   ^ETB  ^REG-^conf^
           0x00, 0x4E,0x55,0x4C,0x4C, 0b0000_0001, 0x00,
 #         ^i=0  ^Decl.Name=NULL---^  ^type+len-^  ^param
           0x00, 0x43,0x4F,0x4E,0x46, 0b0000_0001, 0x00,
 #         ^i=0  ^Decl.Name=CONF---^  ^type+len-^  ^param
-    0x17, 0b11_000000,
+    0x17, 0b0011_0000,
 #   ^ETB  ^RES-^conf^
-    0x17, 0b00_000000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
+    0x17, 0b0000_0000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
 #   ^ETB  ^PAT-^conf^  ^ParentDirToInterpriter
-    0x17, 0b00_000000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
+    0x17, 0b0000_0000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
 #   ^ETB  ^PAT-^conf^  ^ParentDirToExecFile
-    0x17, 0b00_000000, *strToBytes("stack.dumb"),
+    0x17, 0b0000_0000, *strToBytes("stack.dumb"),
 #   ^ETB  ^PAT-^conf^  ^File1
-    0x17, 0b00_000000, *strToBytes("stack2.dumb"),
+    0x17, 0b0000_0000, *strToBytes("stack2.dumb"),
 #   ^ETB  ^PAT-^conf^  ^File1
 ])
 STACKLEN = 0
@@ -709,13 +803,22 @@ class REGI():
     def join_blobstore_split(split):
         return bytes([0x17]).join(split)
     @staticmethod
-    def set_blobstore_entry(blobstore,index,newbytes):
+    def set_blobstore_entry(blobstore,index,conf_bytes,newbytes):
         split = split_bytes_by_delimiter(blobstore)
-        split[index+1] = newbytes
+        split[index+1] = conf_bytes + newbytes
         return REGI.join_blobstore_split(split)
     @staticmethod
     def get_blobstore_entry(blobstore,index):
         split = split_bytes_by_delimiter(blobstore)
+        # +1 len entry, return first byte as conf and rest as data
+        if len(split[index+1]) > 1:
+            return split[index+1][0],split[index+1][1:]
+        # 1 len entry, return entry as conf and empty as data
+        elif len(split[index+1]) > 0:
+            return split[index+1][0],bytes([])
+        # 0 len entry, return empty conf and entry as data
+        else:
+            return bytes([]),split[index+1]
         return split[index+1]
     @staticmethod
     def get(blobstore):
@@ -726,7 +829,7 @@ class REGI():
             if len(blob) == 1:
                 return blob[0],[]
             if len(blob) > 1:
-                if byteToBinStr(blob[0]).startswith("10"):
+                if byteToBinStr(blob[0]).startswith("0010"):
                     return blob[0],blob[1:]
     @staticmethod
     def append(blobstore,newbytes) -> bytes:
@@ -735,7 +838,7 @@ class REGI():
         # Find regi
         for blob in split:
             if len(blob) > 1:
-                if byteToBinStr(blob[0]).startswith("10"):
+                if byteToBinStr(blob[0]).startswith("0010"):
                     nbytes = nbytes + bytes([0x17]) + blob + newbytes
                 else:
                     nbytes = nbytes + bytes([0x17]) + blob
@@ -750,7 +853,7 @@ class REGI():
         # Find regi
         for blob in split:
             if len(blob) > 1:
-                if byteToBinStr(blob[0]).startswith("10"):
+                if byteToBinStr(blob[0]).startswith("0010"):
                     nbytes = nbytes + bytes([0x17, blob[0]])
                 else:
                     nbytes = nbytes + bytes([0x17]) + blob
@@ -813,7 +916,6 @@ class REGI():
         DECL_BYTES = bytes([ADRESS, *DECL_NAME, binToByte(intToBinaryStr(inputtype,4)+intToBinaryStr(paramlength,4)), *n_paramtypes])
         if methodpair != None and method != None:
             methodpair[ADRESS] = method
-
         ret = REGI.append(BLOBSTORE,DECL_BYTES)
         return ret
     
@@ -895,11 +997,13 @@ def unsafe_bytes(bytedata):
     return base64.b64decode(bytedata)
 
 def get_result():
-    return unsafe_bytes(REGI.get_blobstore_entry(BLOBSTORE,0x01))
+    _,x = REGI.get_blobstore_entry(BLOBSTORE,0x01)
+    return unsafe_bytes(x)
 
 def set_result(binarydata):
     global BLOBSTORE
-    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x01,safe_bytes(binarydata))
+    BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x01,bytes([0b0011_0000]),safe_bytes(binarydata))
+    #                                                            ^type^conf
 
 def declFast(cmds):
     global BLOBSTORE
@@ -998,19 +1102,22 @@ def exec_line(bytesline):
         print(f"$ {REGI.getDecl_bname(BLOBSTORE,bytesline[0])['Name']} < {bytesline[1:]}")
 
 def exec_conf_line(line):
-    if line.strip() == ".clear":
+    sline = line.strip()
+    if sline == ".clear":
         lcu.clear()
+    elif sline.startswith(".text"):
+        intep_text(' '.join(sline.split(" ")[1:]))
 
 def combine_byte_file(HEAD,EXEC,BLOBp,REGIp):
     # config 0001 has no REGI included
     if byteToBinStr(HEAD[0])[-4:].endswith("01"):
         # Reset REGISTRY
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE,0x00,bytes([0b10_000000]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE,0x00,bytes([0b10_000000]),bytes([]))
         # Reset Ix02,Ix03,Ix04,Ix05
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x02,bytes([0b00_000000]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x03,bytes([0b00_000000]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x04,bytes([0b00_000000]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x05,bytes([0b00_000000]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x02,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x03,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x04,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x05,bytes([0b00_000000]),bytes([]))
         # Append REGIp
         if len(REGIp) > 0: BLOBSTORE2 = REGI.append(BLOBSTORE2)
         # Combine
@@ -1027,10 +1134,10 @@ def combine_byte_file(HEAD,EXEC,BLOBp,REGIp):
     else:
         BLOBSTORE2 = BLOBSTORE
         # Reset Ix02,Ix03,Ix04,Ix05
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x02,bytes([0b00_000000]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x03,bytes([0b00_000000]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x04,bytes([0b00_000000]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x05,bytes([0b00_000000]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x02,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x03,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x04,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x05,bytes([0b00_000000]),bytes([]))
         # Append REGIp
         if len(REGIp) > 0: BLOBSTORE2 = REGI.append(BLOBSTORE2,bytes(REGIp))
         # Combine
@@ -1056,6 +1163,8 @@ declFast([
     ["MAXL","NONE",[],MAXL,"Gets the locked lenght of stack."],
     ["PEEK","ONLY",["HEXx"],PEEK,"Gets the value at STACK.a"],
     ["GRES","ONLY",["HEXx","HEXx"],GRES,"RESULT into STACK starting at A until B, if A==B, until end-of-RESULT or end-of-STACK."],
+    ["GTRT","NONE",[],GTRT,"Truncates any ClearChar from RESULT's end, and puts the truncated value into RESULT."],
+    ["GTST","NONE",[],GTST,"Truncates any ClearChar from STACK's end, and puts the truncated value into RESULT."],
 
     ["DICE","ONLY",["HEXNUMBER","HEXNUMBER"],DICE,"Gives random betwen A and B, inclusive."],
     ["TAKE","NONE",[],TAKE,"Asks the user for text input."],
@@ -1100,6 +1209,9 @@ declFast([
     ["IFNO","ONLY",["BLOBINDEX","HEXx","HEXx"],IFNO,"Calls if STACK.a != STACK.b"],
     ["IFGT","ONLY",["BLOBINDEX","HEXx","HEXx"],IFGT,"Calls if STACK.a > STACK.b"],
     ["IFLT","ONLY",["BLOBINDEX","HEXx","HEXx"],IFLT,"Calls if STACK.a < STACK.b"],
+    ["IFNV","ONLY",["BLOBINDEX","HEXx"],IFNV,"CALLS if value in STACK."],
+    ["IFNR","ONLY",["BLOBINDEX","HEXx"],IFNR,"CALLS if value in RESULT."],
+    ["IFNS","ONLY",["BLOBINDEX"],IFNS,"CALLS if value in RESULT in STACK."],
 
     ["FORP","ONLY",["BLOBINDEX","HEXx"],FORP,"Iterates STACK.a times."],
     ["FORE","ONLY",["BLOBINDEX"],FORE,"Iterates for each entry in RESULT."],
@@ -1127,6 +1239,8 @@ declFast([
     ["EXIR","ONLY",["PATHINDEX"],EXIR,"Saves 0 or 1 to RESULT if BLOBINDEX exists."],
     ["REMA","ONLY",["PATHINDEX"],REMA,"Removes the file. Asks if sure"],
     ["REMF","ONLY",["PATHINDEX"],REMF,"Removes the file. Just removes"],
+    ["TCHA","ONLY",["PATHINDEX"],TCHA,"Touches a file. Asks if exists"],
+    ["TCHF","ONLY",["PATHINDEX"],TCHF,"Touches a file. Just overrides if exists"],
     ["WRTE","ONLY",["PATHINDEX"],WRTE,"Writes the stack to a file as raw bytes."],
     ["WRTS","ONLY",["PATHINDEX","HEXx","HEXx"],WRTS,"Writes the stack between two indexes to a file as raw bytes."],
     ["WRTR","ONLY",["PATHINDEX"],WRTR,"Writes the RESULT to a file at a filepath as raw bytes."],
@@ -1218,7 +1332,7 @@ def exec_byte_inp(EXEC,retbytes=False):
                         else:
                             exec_line( bytes([WORDd["Addr"]]) )
                     except Exception as e:
-                        fprint("{f.red}ERROR: "+e+"{r}")
+                        fprint("{f.red}ERROR: "+f"{e}"+"{r}")
                     # reset
                     traversed = 0
                     WORDd = None
@@ -1281,7 +1395,7 @@ def exec_byte_inp(EXEC,retbytes=False):
                         exec_line( bytes([WORDd["Addr"],*args]) )
 
                 except Exception as e:
-                    fprint("{f.red}ERROR: "+e+"{r}")
+                    fprint("{f.red}ERROR: "+f"{e}"+"{r}")
                 # reset
                 traversed = 0
                 WORDd = None
@@ -1410,7 +1524,7 @@ try:
                 if inp.strip() != "":
                     exec_cli_input(inp,False)
             except Exception as e:
-                fprint("{f.red}ERROR: "+e+"{r}")
+                fprint("{f.red}ERROR: "+f"{e}"+"{r}")
     else:
         if INTEP_RUNNING == True and os.path.exists(pargs.path):
             cli_content = None
@@ -1424,9 +1538,12 @@ try:
                 BLOBSTORE = REGI.ensure_blobstore_adresses(BLOBSTORE)
                 lcu.setConTitle(f"DUMB {FRIENDLY_VERSION} ^| Executing {os.path.basename(pargs.path)}... (Mode:TEXT)")
                 ENVIR_HEADER = "SOURCE_FILE"
-                BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x03, bytes([
-                    0b00_000000, *strToBytes(os.path.dirname(pargs.path))
-                ]))
+                BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x03,
+                    bytes([0b00_000000]),
+                    bytes([
+                        *strToBytes(os.path.dirname(pargs.path))
+                    ])
+                )
                 bytelines = []
                 for line in cli_content.split("\n"):
                     if line.strip() != "":
@@ -1438,7 +1555,7 @@ try:
                             else:
                                 exec_cli_input(line,False)
                         except Exception as e:
-                            fprint("{f.red}ERROR: "+e+"{r}")
+                            fprint("{f.red}ERROR: "+f"{e}"+"{r}")
                 # TEXT -> BYTE
                 if pargs.conv_byte_path != None:
                     VERS = format(COMP_FILEVER,'03b') # XXX
@@ -1460,11 +1577,11 @@ try:
                 #   also update paths
                 if conf.endswith("01"):
                     # Update regi
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x00, REGI.get_blobstore_entry(BLOBSTORE,0x00) )
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x00, *REGI.get_blobstore_entry(BLOBSTORE,0x00) )
                     # Update 0x02,0x04,0x05 (not 0x03 since it's set bellow)
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x02, REGI.get_blobstore_entry(BLOBSTORE,0x02) )
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x04, REGI.get_blobstore_entry(BLOBSTORE,0x04) )
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x05, REGI.get_blobstore_entry(BLOBSTORE,0x05) )
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x02, *REGI.get_blobstore_entry(BLOBSTORE,0x02) )
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x04, *REGI.get_blobstore_entry(BLOBSTORE,0x04) )
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x05, *REGI.get_blobstore_entry(BLOBSTORE,0x05) )
 
                 # config 0010 has no BLOBSTORE at al, include interpriters to newly-read BLOBSTORE instance
                 elif conf.endswith("10"):
@@ -1473,9 +1590,12 @@ try:
                 # Continue
                 lcu.setConTitle(f"DUMB {FRIENDLY_VERSION} ^| Executing {os.path.basename(pargs.path)}... (Mode:BYTE)")
                 BLOBSTORE = REGI.ensure_blobstore_adresses(BLOB)
-                BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x03, bytes([
-                    0b00_000000, *strToBytes(os.path.dirname(pargs.path))
-                ]))
+                BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x03,
+                    bytes([0b00_000000]),
+                    bytes([
+                    *strToBytes(os.path.dirname(pargs.path))
+                    ])
+                )
                 bytelines = []
                 
                 if pargs.conv_text_path != None:
