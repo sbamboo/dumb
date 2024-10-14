@@ -1460,13 +1460,13 @@ if pargs.write_example == True:
         0x02,0xFF,       # LOCK 255
         0x03,0x00,       # FILL NULL
 
-        0x3A,            # WPOK (Walk-POKE)
+        0x41,            # WPOK (Walk-POKE)
           0x0C,          # ParamLength: 12 (Since WPOK is a dynamic_param_lenght method)
           0x00,          # Start STACKPOS
           # Hello world!
           0x48,0x65,0x6C,0x6C,0x6F, 0x20, 0x77,0x6F,0x72,0x6C,0x64,0x21,
         0x0B,0x00,0x0B,  # WALK 0x01 to 0x0B
-        0x12,            # PRES
+        0x14,            # PRES
     ]
     EXEC2 = [
         0x02,0xFF, # LOCK 255
@@ -1485,7 +1485,7 @@ if pargs.write_example == True:
         0x08,0x0A,0x64, # POKE d
         0x08,0x0B,0x21, # POKE !
         0x0B,0x00,0x0B, # WALK 0 - 11
-        0x12,           # PRES
+        0x14,           # PRES
     ]
     parent = os.path.dirname(os.path.abspath(__file__))
     open(os.path.join(parent,"examples","helloworld_short.dumb"),'wb').write(combine_byte_file(HEAD1,EXEC1,BLOBp,REGIp))
