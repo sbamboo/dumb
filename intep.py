@@ -729,8 +729,8 @@ BLOBSTORE = bytes([
 #   ^ETB  ^REG-^conf^
           0x00, 0x4E,0x55,0x4C,0x4C, 0b0000_0001, 0x00,
 #         ^i=0  ^Decl.Name=NULL---^  ^type+len-^  ^param
-          0x00, 0x43,0x4F,0x4E,0x46, 0b0000_0001, 0x00,
-#         ^i=0  ^Decl.Name=CONF---^  ^type+len-^  ^param
+          0x01, 0x43,0x4F,0x4E,0x46, 0b0000_0001, 0x00,
+#         ^i=1  ^Decl.Name=CONF---^  ^type+len-^  ^param
     0x17, 0b0011_0000,
 #   ^ETB  ^RES-^conf^
     0x17, 0b0000_0000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
@@ -1461,10 +1461,10 @@ if pargs.write_example == True:
         0x03,0x00,       # FILL NULL
 
         0x3A,            # WPOK (Walk-POKE)
-        0x0C,          # ParamLength: 12 (Since WPOK is a dynamic_param_lenght method)
-        0x00,          # Start STACKPOS
-        # Hello world!
-        0x48,0x65,0x6C,0x6C,0x6F, 0x20, 0x77,0x6F,0x72,0x6C,0x64,0x21,
+          0x0C,          # ParamLength: 12 (Since WPOK is a dynamic_param_lenght method)
+          0x00,          # Start STACKPOS
+          # Hello world!
+          0x48,0x65,0x6C,0x6C,0x6F, 0x20, 0x77,0x6F,0x72,0x6C,0x64,0x21,
         0x0B,0x00,0x0B,  # WALK 0x01 to 0x0B
         0x12,            # PRES
     ]
