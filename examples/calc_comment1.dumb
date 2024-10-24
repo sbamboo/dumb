@@ -1,0 +1,103 @@
+.source                       # Required header to read file in text-mode
+LOCK 0xFF                     # Set the stack length to 255
+FILL 0x00                     # Initialize the stack with 0x00
+
+
+# Step 1: Define operations into stack
+
+POKE Px00 0x2B                # Poke "+" at Px00
+POKE Px01 0x2D                # Poke "-" at Px00
+POKE Px02 0x2A                # Poke "*" at Px00
+POKE Px03 0x2F                # Poke "/" at Px00
+POKE Px04 0x5E                # Poke "^" at Px00
+POKE Px05 0x78                # Poke "x" at Px00
+
+
+# Step 2: Define the voids for operations
+
+VOID                          # Start of the addition void
+  ADDS Px25 Px2C              # Add numbers from stack at Px25 and Px2C
+VEND Ix06                     # End of addition void, stored at 0x06
+
+VOID                          # Start of the subtraction void
+  SUBS Px25 Px2C              # Subtract numbers from stack at Px25 and Px2C
+VEND Ix07                     # End of subtraction void, stored at 0x07
+
+VOID                          # Start of the multiplication void
+  MULS Px25 Px2C              # Multiply numbers from stack at Px25 and Px2C
+VEND Ix08                     # End of multiplication void, stored at 0x08
+
+VOID                          # Start of the division void
+  DIVS Px25 Px2C              # Divide numbers from stack at Px25 and Px2C
+VEND Ix09                     # End of multiplication void, stored at 0x09
+
+VOID                          # Start of the power void
+  POWS Px25 Px2C              # Powers a number from stack at Px25 by a number from stacka at Px2C
+VEND Ix0A                     # End of power void, stored at 0x0A
+
+VOID                          # Start of the exit void
+  YEET                        # Exists the program
+VEND Ix0B                     # End of exit void, stored at 0x0B
+
+
+# Step 3.1: Start main VOID
+
+VOID
+
+
+  # Step 3.2: Ask for the operation
+                              # Pokes the string "Op? (+, -, *, /, ^, x) "
+  WPOK 0x17 Px06 0x4F 0x70 0x3F 0x20 0x28 0x2B 0x2C 0x20 0x2D 0x2C 0x20 0x2A 0x2C 0x20 0x2F 0x2C 0x20 0x5E 0x2C 0x20 0x78 0x29 0x20
+  WALK Px06 Px1D              # Walk the string into RESULT
+  PREE                        # Print the string
+  TAKS                        # Ask for the operation (input goes to RESULT)
+  GRES Px1E Px1E              # Store operation code in stack position 0x1D (to be checked later)
+
+
+  # Step 3.3: Exit if operation is "x"
+
+  IFIS Ix0B Px1E Px05         # Calls the Ix0B void (exit) if Px1D (op) is Px05 ("x")
+
+
+  # Step 3.4: Ask for the first number
+                              # Pokes the string "Num1?"
+  WPOK 0x06 Px1F 0x4E 0x75 0x6D 0x31 0x3F 0x20
+  WALK 0x1F Px24              # Walk the string into RESULT
+  PREE                        # Print the string
+  TAKS                        # Ask for the first number (input goes to RESULT)
+  CCMB                        # Convert input from string to integer
+  GRES Px25 Px25              # Store the first number in stack at position 0x25
+
+
+  # Step 3.5: Ask for the second number
+                              # Pokes the string "Num2?"
+  WPOK 0x06 Px26 0x4E 0x75 0x6D 0x32 0x3F 0x20
+  WALK 0x26 Px2B              # Walk the string into RESULT
+  PREE                        # Print the string
+  TAKS                        # Ask for the second number (input goes to RESULT)
+  CCMB                        # Convert input from string to integer
+  GRES Px2C Px2C              # Store the second number in stack at position 0x2C
+
+
+  # Step 3.6: Call correct operation based on previous input
+
+  IFIS Ix06 Px1E Px00         # Calls the Ix06 void (addition) if Px1E (op) is Px00 ("+")
+  IFIS Ix07 Px1E Px01         # Calls the Ix07 void (subtraction) if Px1E (op) is Px01 ("-")
+  IFIS Ix08 Px1E Px02         # Calls the Ix08 void (multiplication) if Px1E (op) is Px02 ("*")
+  IFIS Ix09 Px1E Px03         # Calls the Ix09 void (division) if Px1E (op) is Px03 ("/")
+  IFIS Ix0A Px1E Px04         # Calls the Ix0A void (exponentiation/power) if Px1E (op) is Px04 ("^")
+
+
+  # Step 3.7: Print result
+
+  TINT                        # Convert the result to string
+  PRES                        # Prints the resulting number
+  CRES                        # Clear result
+  PRES                        # Print the empty result to print a newline
+
+
+# Step 3.8 End main void
+VEND Ix0C                     # End of exit void, stored at 0x0C
+
+# Step 4 Loop
+WHIS Ix0C,Px00,Px00           # Infinite while loop since we used pos.0 for storing the operation "x" for later checking, so this is same as `while "x" == "x"`

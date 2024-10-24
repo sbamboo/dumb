@@ -3,6 +3,8 @@ import os,sys,base64,random,time,argparse,re,subprocess
 from _helpers import *
 import _libConUtils as lcu
 
+pargs = None
+
 def intep_text(x):
     xs = x.split(" ")
     pos = int(xs[0][2:],16)
@@ -101,14 +103,23 @@ Loaded methods: ({len(METHOD_ADDR_TO_FUNC.keys())}st)
 
 def POKE(pos,value):
     global STACK
+    if pargs != None:
+        if pargs.debug_stack == True:
+            fprint("{#ff99cc}STPUT "+f'0x{value:02X}'+" @ "+f'0x{pos:02X}'"{r}")
     STACK[pos] = value
 
 def WACK(pos):
     global STACK
+    if pargs != None:
+        if pargs.debug_stack == True:
+            fprint("{#ff99cc}STDEL @ "+f'0x{pos:02X}'+"{r}")
     STACK[pos] = STACK_CLEAR
 
 def SWAP(pos1,pos2):
     global STACK
+    if pargs != None:
+        if pargs.debug_stack == True:
+            fprint("{#ff99cc}STSWP "+f'0x{pos1:02X}'+" <- "+f'0x{pos2:02X}'+"{r}")
     STACK[pos1] = STACK[pos2]
     tmp = STACK[pos2]
     STACK[pos1] = tmp
@@ -121,6 +132,9 @@ def MAXL():
     set_result(bytes([ len(get_result()) ]))
 
 def PEEK(pos):
+    if pargs != None:
+        if pargs.debug_stack == True:
+            fprint("{#ff99cc}STPEK <- "+f'0x{value:02X}'+"{r}")
     set_result(bytes([ STACK[pos] ]))
 
 def GRES(pos1,pos2):
@@ -138,10 +152,25 @@ def GRES(pos1,pos2):
             BYTES = [RESULT]
     if pos1 < len(STACK)-1:
         pos = pos1
+        #debug-st
+        if pargs != None:
+            if pargs.debug_stack == True:
+                fprint("{#ff99cc}STRES:",end="")
+        #debug-en
         for byte in BYTES:
+            if type(byte) == bytes: byte = byte[0]
             if pos < len(STACK)-1 and pos <= pos2:
                 STACK[pos] = byte
+                # debug
+                if pargs != None:
+                    if pargs.debug_stack == True:
+                        fprint(f'  0x{byte:02X} @ 0x{pos:02X}',end="")
             pos +=1
+        #debug-st
+        if pargs != None:
+            if pargs.debug_stack == True:
+                fprint("{r}")
+        #debug-en
 
 def GTRT():
     res = reversed(get_result())
@@ -175,6 +204,9 @@ def DICE(hexnumber1,hexnumber2):
 def TAKE():
     set_result(bytes(strToBytes(input(": "))))
 
+def TAKS():
+    set_result(bytes(strToBytes(input(""))))
+
 def CRES():
     set_result(bytes([]))
 
@@ -182,6 +214,11 @@ def PRES():
     BYTES = get_result()
     STR = BYTES.decode(ENCODING)
     fprint(STR)
+
+def PREE():
+    BYTES = get_result()
+    STR = BYTES.decode(ENCODING)
+    fprint(STR,end="")
 
 def LRES(pos):
     global STACK
@@ -284,6 +321,7 @@ def MODS(pos1,pos2):
     set_result(bytes([ STACK[pos1] % STACK[pos2] ]))
 
 def TINT():
+    # NumByte -> CharByte
     #set_result(str(int(get_result())).encode(ENCODING))
     res = get_result()
     fin = bytes([])
@@ -292,6 +330,7 @@ def TINT():
     set_result(fin)
 
 def FINT():
+    # CharByte -> NumByte
     #set_result( bytes([ int(get_result().decode(ENCODING)) ]) )
     res = get_result()
     fin = bytes([])
@@ -463,6 +502,22 @@ def WHLT(blobindex,pos1,pos2):
     ITERATING_VOID = None
     ITERATING_INDEX = 0
 
+def WHIR(blobindex,pos):
+    # prep
+    ITERATING_VOID = blobindex
+    ITERATING_INDEX = 0
+    res = get_result()[0]
+    # main
+    while ITERATING_INDEX != None:
+        if res == STACK[pos]:
+            CALL(ITERATING_VOID)
+            ITERATING_INDEX += 1
+        else:
+            break
+    # reset
+    ITERATING_VOID = None
+    ITERATING_INDEX = 0
+
 def BRCK():
     ITERATING_VOID = None
     ITERATING_INDEX = 0
@@ -472,12 +527,26 @@ def GETI():
 
 def WPOK(_,pos1,*values):
     pos = pos1
+    #debug-st
+    if pargs != None:
+        if pargs.debug_stack == True:
+            fprint("{#ff99cc}STWPK:",end="")
+    #debug-en
     for v in values:
         if pos < len(STACK):
             STACK[pos] = v
+            # debug
+            if pargs != None:
+                if pargs.debug_stack == True:
+                    fprint(f'\n  0x{v:02X} @ 0x{pos:02X}',end="")
         else:
             break
         pos += 1
+    #debug-st
+    if pargs != None:
+        if pargs.debug_stack == True:
+            fprint("{r}")
+    #debug-en
 
 def WPKR(_,pos1,*values):
     pos = pos1
@@ -713,6 +782,34 @@ def FINO(value):
     if index != None:
         set_result( bytes([index]) )
 
+def FPAC(length,value):
+    res = get_result()
+    len2 = len(res)
+    if len2 > length:
+        set_result(res[:length])
+    else:
+        res = bytes([value]) * (length - len2) + res
+        set_result(res)
+
+def APAC(length,value):
+    res = get_result()
+    len2 = len(res)
+    if len2 > length:
+        set_result(res[:length])
+    else:
+        res = res + bytes([value]) * (length - len2)
+        set_result(res)
+
+def CCMB():
+    set_result( bytes([ int(get_result().decode(ENCODING)) ]) )
+
+def NCMB():
+    str_ = ""
+    for b in get_result():
+        str_ += str(b)
+    set_result( bytes([int(str_)]) )
+
+
 # MARK:PREDEF
 
 FRIENDLY_VERSION = "0.0"
@@ -813,10 +910,10 @@ class REGI():
         split = split_bytes_by_delimiter(blobstore)
         # +1 len entry, return first byte as conf and rest as data
         if len(split[index+1]) > 1:
-            return split[index+1][0],split[index+1][1:]
+            return bytes([split[index+1][0]]),split[index+1][1:]
         # 1 len entry, return entry as conf and empty as data
         elif len(split[index+1]) > 0:
-            return split[index+1][0],bytes([])
+            return bytes([split[index+1][0]]),bytes([])
         # 0 len entry, return empty conf and entry as data
         else:
             return bytes([]),split[index+1]
@@ -999,12 +1096,21 @@ def unsafe_bytes(bytedata):
 
 def get_result():
     _,x = REGI.get_blobstore_entry(BLOBSTORE,0x01)
-    return unsafe_bytes(x)
+    data = unsafe_bytes(x)
+    if pargs != None:
+        if pargs.debug_result == True:
+            bytestr = ' '.join(f'0x{byte:02X}' for byte in data)
+            fprint("{f.cyan}GETRES -> "+f"{bytestr}"+"{r}")
+    return data
 
 def set_result(binarydata):
     global BLOBSTORE
     BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x01,bytes([0b0011_0000]),safe_bytes(binarydata))
     #                                                            ^type^conf
+    if pargs != None:
+        if pargs.debug_result == True:
+            bytestr = ' '.join(f'0x{byte:02X}' for byte in binarydata)
+            fprint("{f.cyan}SETRES <- "+f"{bytestr}"+"{r}")
 
 def declFast(cmds):
     global BLOBSTORE
@@ -1067,13 +1173,34 @@ def readDumbFile(fullAbsPath):
             CODE = bytes([])
             BLOB = bytes([])
             hf_0x17 = False
-            for byte in DATA:
-                if byte == 0x17:
+            in_cmd = False
+            in_cmd_left = 0
+            decls = REGI.getDecl(BLOBSTORE)
+            addrs = {}
+            for x in decls:
+                addrs[ x["Addr"] ] = x
+            for bytei,byte in enumerate(DATA):
+                # idef
+                if in_cmd == False and byte in addrs.keys():
+                    in_cmd = addrs[byte]
+                    if byte in DYNAMIC_PARAM_METHODS or byte in DYNAMIC_PARAM_METHODS_POSLEN:
+                        in_cmd["Length"] = DATA[bytei+1]
+                    in_cmd_left = in_cmd["Length"]
+                if in_cmd_left > 0:
+                    in_cmd_left -= 1
+                else:
+                    in_cmd,in_cmd_left = False,0
+                # append
+                if byte == 0x17 and in_cmd_left <= 0:
+                    if pargs.debug == True:
+                        fprint("{f.darkgray}FILE: Blob at i:"+f"{bytei}"+"{r}")
                     hf_0x17 = True
                 if hf_0x17 == False:
                     CODE = CODE + bytes([byte])
                 else:
                     BLOB = BLOB + bytes([byte])
+                # idef2
+
             return TYPE,VERS,CONF,CODE,BLOB
         # STACK
         if TYPE == 1:
@@ -1107,7 +1234,11 @@ def exec_conf_line(line):
     if sline == ".clear":
         lcu.clear()
     elif sline == ".exit":
-        lcu.clear()
+        exit()
+    elif sline == ".pstack":
+        print(STACK)
+    elif sline == ".presult":
+        print(get_result())
     elif sline.startswith(".text"):
         intep_text(' '.join(sline.split(" ")[1:]))
     elif sline.startswith(".code"):
@@ -1179,10 +1310,12 @@ declFast([
     ["GTST","NONE",[],GTST,"Truncates any ClearChar from STACK's end, and puts the truncated value into RESULT."],
 
     ["DICE","ONLY",["HEXNUMBER","HEXNUMBER"],DICE,"Gives random betwen A and B, inclusive."],
-    ["TAKE","NONE",[],TAKE,"Asks the user for text input."],
+    ["TAKE","NONE",[],TAKE,"Asks the user for text input, ': ' prompt."],
+    ["TAKS","NONE",[],TAKS,"Asks the user for text input, no prompt."],
 
     ["CRES","NONE",[],CRES,"Clears RESULT."],
     ["PRES","NONE",[],PRES,f"Prints the content of RESULT as {ENCODING}."],
+    ["PREE","NONE",[],PREE,f"Prints the content of RESULT as {ENCODING}, no newline."],
     ["LRES","ONLY",["HEXx"],LRES,"Gets the length of RESULT."],
 
     ["YEET","NONE",[],YEET,"Exits."],
@@ -1233,6 +1366,7 @@ declFast([
     ["WHNO","ONLY",["BLOBINDEX","HEXx","HEXx"],WHNO,"While STACK.a != STACK.b"],
     ["WHGT","ONLY",["BLOBINDEX","HEXx","HEXx"],WHGT,"While STACK.a > STACK.b"],
     ["WHLT","ONLY",["BLOBINDEX","HEXx","HEXx"],WHLT,"While STACK.a < STACK.b"],
+    ["WHIR","ONLY",["BLOBINDEX","HEXx"],WHIR,"While RESULT.0 == STACK.a"],
 
     ["BRCK","NONE",[],BRCK,"Breaks interation."],
     ["GETI","NONE",[],GETI,"Gets iter-index to result."],
@@ -1272,6 +1406,11 @@ declFast([
     ["DELR","ONLY",["HEX"],DELR,"Empties every instance of A in RESULT."],
     ["FIND","ONLY",["HEX"],FIND,"Returns al the indexes where A is in the stack to RESULT as a list."],
     ["FINO","ONLY",["HEX"],FINO,"Returns fhe first index where A is in the stack to RESULT."],
+
+    ["FPAC","ONLY",["HEX","HEX"],FPAC,"Padds front of result to len A with chars B, cuts to length A if to long!"],
+    ["APAC","ONLY",["HEX","HEX"],APAC,"Padds end of result to len A with chars B, cuts to length A if to long!"],
+    ["CCMB","NONE",[],CCMB,"Combines RESULT as chars into a numeral byte, ex: 0x31+0x32 (12) -> 0x0C"],
+    ["NCMB","NONE",[],NCMB,"Combines RESULT as nums into a numeral byte, ex: 0x01+0x02 (12) -> 0x0C"],
 ])
 
 # MARK: InterpFuncs
@@ -1290,15 +1429,26 @@ def exec_cli_input(inp,retbytes=False):
             if WORD in ["0x17",0x17]:
                 fprint("{f.red}ERROR: 0x17 is not addressable!{r}")
             else:
+                # Get decl
                 CMDD = REGI.getDecl_bname(BLOBSTORE,WORD)
+                # Get args
+                rest = inp[4:].lstrip()
+                if "," in rest:
+                    args = rest.split(",")
+                else:
+                    args = rest.split(" ")
+                # Debug
+                if pargs.debug == True:
+                    strargs = ""
+                    for x in args:
+                        if x not in [None,""]: strargs += f', 0x{addr_to_int(x):02X}'
+                    if strargs.startswith(", "): strargs = strargs.replace(", ","",1)
+                    fprint("{f.magenta}"+CMDD["Name"].decode(ENCODING)+" "+strargs+"{r}")
+                # React
                 if CMDD == None:
                     fprint("{f.red}ERROR: Command "+WORD+" is not defined!{r}")
                 else:
-                    rest = inp[4:].lstrip()
-                    if "," in rest:
-                        args = [addr_to_int(x) for x in rest.split(",")]
-                    else:
-                        args = [addr_to_int(x) for x in rest.split(" ")]
+                    args = [addr_to_int(x) for x in args]
                     if None in args: args.remove(None)
                     line = bytes([CMDD["Addr"],*args])
                     if retbytes == True:
@@ -1333,6 +1483,8 @@ def exec_byte_inp(EXEC,retbytes=False):
                 intep_debug_print("{f.green}CMD: "+hex(byte)+" '"+WORDd['Name'].decode(ENCODING)+"'{r}")
 
             MAXLEN = WORDd["Length"]
+
+            #print(WORDd["Name"], f'0x{EXEC[bytei]:02X}', bytei, len(EXEC) )
 
             if type(WORDd) == dict:
                 if MAXLEN == 0:
@@ -1423,6 +1575,8 @@ from _lib_fuse_legacy_ui import Text,Console
 parser = argparse.ArgumentParser()
 parser.add_argument("-path","-p",dest="path")
 parser.add_argument("--d",dest="debug",action="store_true")
+parser.add_argument("--dr",dest="debug_result",action="store_true")
+parser.add_argument("--ds",dest="debug_stack",action="store_true")
 parser.add_argument("--e",dest="autoexit",action="store_true")
 parser.add_argument("--no-warn",dest="no_warn",action="store_true")
 
@@ -1472,13 +1626,13 @@ if pargs.write_example == True:
         0x02,0xFF,       # LOCK 255
         0x03,0x00,       # FILL NULL
 
-        0x41,            # WPOK (Walk-POKE)
+        0x44,            # WPOK (Walk-POKE)
           0x0C,          # ParamLength: 12 (Since WPOK is a dynamic_param_lenght method)
           0x00,          # Start STACKPOS
           # Hello world!
           0x48,0x65,0x6C,0x6C,0x6F, 0x20, 0x77,0x6F,0x72,0x6C,0x64,0x21,
         0x0B,0x00,0x0B,  # WALK 0x01 to 0x0B
-        0x14,            # PRES
+        0x15,            # PRES
     ]
     EXEC2 = [
         0x02,0xFF, # LOCK 255
@@ -1497,7 +1651,7 @@ if pargs.write_example == True:
         0x08,0x0A,0x64, # POKE d
         0x08,0x0B,0x21, # POKE !
         0x0B,0x00,0x0B, # WALK 0 - 11
-        0x14,           # PRES
+        0x15,           # PRES
     ]
     parent = os.path.dirname(os.path.abspath(__file__))
     open(os.path.join(parent,"examples","helloworld_short.dumb"),'wb').write(combine_byte_file(HEAD1,EXEC1,BLOBp,REGIp))

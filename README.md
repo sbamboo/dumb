@@ -207,7 +207,10 @@ Truncates any ClearChar from STACK's end, and puts the truncated value into RESU
 Returns a random entry from the range 0x00 to 0x06 (INCLUSIVE) to RESULT.
 
 `TAKE`<br>
-Asks the interpriter for text input and sends to RESULT.
+Asks the interpriter for text input and sends to RESULT, `: ` prompt.
+
+`TAKS`<br>
+Asks the interpriter for text input and sends to RESULT, no prompt.
 <br><br>
 
 `CRES`<br>
@@ -215,6 +218,9 @@ Clears the RESULT.
 
 `PRES`<br>
 Prints the content of RESULT converted to ASCII to the interpriter.
+
+`PREE`<br>
+Prints the content of RESULT converted to ASCII to the interpriter, but no newline at end.
 
 `LRES Px00`<br>
 Returns the length of the RESULT to Px00/INDEX.0 in stack.
@@ -344,11 +350,20 @@ CALLS void at Ix00 RESULT times.
 For each entry in result (multiple post-walk) call VOID.
 <br><br>
 
-`WHIL Ix00,Px00,Px01`
+`WHIS Ix00,Px00,Px01`
 CALLS void at Ix00 while value at stack Px00 is value at stack Px01.
 
+`WHNO Ix00,Px00,Px01`
+CALLS void at Ix00 while value at stack Px00 is not value at stack Px01.
+
+`WHGT Ix00,Px00,Px01`
+CALLS void at Ix00 while value at stack Px00 is greater then value at stack Px01.
+
+`WHLT Ix00,Px00,Px01`
+CALLS void at Ix00 while value at stack Px00 is less then value at stack Px01.
+
 `WHIR Ix00,Px00`<br>
-CALLS void at Ix00 while RESULT is value at stack Px00.
+CALLS void at Ix00 while RESULT.0 is value at stack Px00.
 <br><br>
 
 `BRCK`<br>
@@ -464,6 +479,18 @@ Split the stack at the first entry of 0x01 and return the before-content to RESU
 
 `SPLA 0x01`<br>
 Split the stack at the first entry of 0x01 and return the after-content to RESULT.
+
+`FPAC 0x05 0x00`<br>
+Padds front of result to len 0x05 with chars 0x00 (NULL), cuts to length 0x05 if to long.
+
+`APAC 0x05 0x00`<br>
+Padds end of result to len 0x05 with chars 0x00 (NULL), cuts to length 0x05 if to long.
+
+`CCMB`<br>
+PaCombines RESULT as chars into a numeral byte. ex: 0x31+0x32 (12) -> 0x0C
+
+`NCMB`<br>
+Combines RESULT as nums into a numeral byte, ex: 0x01+0x02 (12) -> 0x0C
 
 ## TODO
 - ☑ Add advanced formatting support to interpriter.

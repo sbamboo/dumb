@@ -1,0 +1,80 @@
+.source                       # Required header to read file in text-mode
+LOCK 0xFF                     # Set the stack length to 255
+FILL 0x00                     # Initialize the stack with 0x00
+
+# Step 1: Define operations into stack
+POKE Px00 0x2B                # "+" operation
+POKE Px01 0x2D                # "-" operation
+POKE Px02 0x2A                # "*" operation
+POKE Px03 0x2F                # "/" operation
+POKE Px04 0x5E                # "^" operation
+POKE Px05 0x78                # "x" (exit) operation
+
+# Step 2: Define the voids for operations
+VOID                          # Start of addition void
+  ADDS Px25 Px2C              # Add numbers from Px25 and Px2C
+VEND Ix06                     # Store addition void at Ix06
+
+VOID                          # Start of subtraction void
+  SUBS Px25 Px2C              # Subtract numbers from Px25 and Px2C
+VEND Ix07                     # Store subtraction void at Ix07
+
+VOID                          # Start of multiplication void
+  MULS Px25 Px2C              # Multiply numbers from Px25 and Px2C
+VEND Ix08                     # Store multiplication void at Ix08
+
+VOID                          # Start of division void
+  DIVS Px25 Px2C              # Divide numbers from Px25 and Px2C
+VEND Ix09                     # Store division void at Ix09
+
+VOID                          # Start of power void
+  POWS Px25 Px2C              # Raise Px25 to the power of Px2C
+VEND Ix0A                     # Store power void at Ix0A
+
+VOID                          # Start of exit void
+  YEET                        # Exit the program
+VEND Ix0B                     # Store exit void at Ix0B
+
+# Step 3: Main calculator loop
+VOID
+  # Ask for operation
+  WPOK 0x17 Px06 0x4F 0x70 0x3F 0x20 0x28 0x2B 0x2C 0x20 0x2D 0x2C 0x20 0x2A 0x2C 0x20 0x2F 0x2C 0x20 0x5E 0x2C 0x20 0x78 0x29 0x20
+  WALK Px06 Px1D              # Display "Op? (+, -, *, /, ^, x) "
+  PREE                        # Print the string
+  TAKS                        # Ask for the operation
+  GRES Px1E Px1E              # Store input in Px1E
+
+  # Exit if operation is "x"
+  IFIS Ix0B Px1E Px05         # Exit if "x" is pressed
+
+  # Ask for numbers
+  WPOK 0x06 Px1F 0x4E 0x75 0x6D 0x31 0x3F 0x20
+  WALK 0x1F Px24              # Display "Num1?"
+  PREE                        # Print the string
+  TAKS                        # Ask for first number
+  CCMB                        # Convert to integer
+  GRES Px25 Px25              # Store in Px25
+
+  WPOK 0x06 Px26 0x4E 0x75 0x6D 0x32 0x3F 0x20
+  WALK 0x26 Px2B              # Display "Num2?"
+  PREE                        # Print the string
+  TAKS                        # Ask for second number
+  CCMB                        # Convert to integer
+  GRES Px2C Px2C              # Store in Px2C
+
+  # Call correct operation
+  IFIS Ix06 Px1E Px00         # Addition
+  IFIS Ix07 Px1E Px01         # Subtraction
+  IFIS Ix08 Px1E Px02         # Multiplication
+  IFIS Ix09 Px1E Px03         # Division
+  IFIS Ix0A Px1E Px04         # Power
+
+  # Print result
+  TINT                        # Convert result to string
+  PRES                        # Print result
+  CRES                        # Clear result
+
+VEND Ix0C                     # End main loop
+
+# Step 4: Infinite while loop since we used pos.0 for storing the operation "x" for later checking, so this is same as `while "x" == "x"`
+WHIS Ix0C,Px00,Px00
