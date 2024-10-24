@@ -263,6 +263,7 @@ def MODT(hexnumber1,hexnumber2):
 
 def ADDS(pos1,pos2):
     set_result(bytes([ STACK[pos1]+STACK[pos2] ]))
+    #set_result(bytes([  int.from_bytes(STACK[pos1], byteorder='big')+int.from_bytes(STACK[pos2], byteorder='big')  ]))
 
 def SUBS(pos1,pos2):
     set_result(bytes([ STACK[pos1]-STACK[pos2] ]))
@@ -1105,8 +1106,19 @@ def exec_conf_line(line):
     sline = line.strip()
     if sline == ".clear":
         lcu.clear()
+    elif sline == ".exit":
+        lcu.clear()
     elif sline.startswith(".text"):
         intep_text(' '.join(sline.split(" ")[1:]))
+    elif sline.startswith(".code"):
+        l = sline.split(" ")[1:]
+        le = len("".join(l).replace("%_"," "))
+        s = " ".join(f"0x{ord(char):02X}" for part in l for char in part.replace("%_"," "))
+        print(f'{le}=0x{le:02X}: {s}')
+    elif sline.startswith(".char"):
+        l = sline.split(" ")[1:]
+        s = "".join(chr(int(part, 16)) for part in l)
+        print(f'{len(l)}: {s}')
 
 def combine_byte_file(HEAD,EXEC,BLOBp,REGIp):
     # config 0001 has no REGI included
@@ -1565,7 +1577,8 @@ try:
                     HEAD = binToByte(f"0{VERS}{CONF}")
                     EXEC = bytes()
                     for line in bytelines:
-                        EXEC = EXEC + line
+                        if line != None:
+                            EXEC = EXEC + line
                     open(pargs.conv_byte_path,'wb').write(
                         combine_byte_file([HEAD],EXEC,[],[])
                     )
