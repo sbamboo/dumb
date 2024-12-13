@@ -235,8 +235,8 @@ def VOID():
     CURRENT_VOID = []
 
 def VEND(blobindex):
-    if blobindex <= 0x05:
-        raise Exception("VOID adressables must be more then 0x05!")
+    if blobindex <= 0x0B:
+        raise Exception("VOID adressables must be more then 0x0B!")
     global BLOBSTORE, CURRENT_VOID
     # Make a bytes object with 0x17 as line-sep
     BYTES = bytes([])
@@ -258,8 +258,8 @@ def CALL(blobindex):
         exec_line(line)
 
 def JPAT(pathindex1,pathindex2,pathindex3):
-    if pathindex3 <= 0x05:
-        raise Exception("PATH adressables must be more then 0x05!")
+    if pathindex3 <= 0x0B:
+        raise Exception("PATH adressables must be more then 0x0B!")
     global BLOBSTORE
     _,path1 = REGI.get_blobstore_entry(BLOBSTORE,pathindex1)
     _,path2 = REGI.get_blobstore_entry(BLOBSTORE,pathindex2)
@@ -558,8 +558,8 @@ def WPKR(_,pos1,*values):
         pos += 1
 
 def SWPB(blobindex1,blobindex2):
-    if blobindex1 <= 0x05 or blobindex2 <= 0x05:
-        raise Exception("SWAP adressables must be more then 0x05!")
+    if blobindex1 <= 0x0B or blobindex2 <= 0x0B:
+        raise Exception("SWAP adressables must be more then 0x0B!")
     global BLOBSTORE
     # No config-bytes are added here since we are swapping full entries
     bic1 = REGI.get_blobstore_entry(BLOBSTORE,blobindex1)
@@ -809,6 +809,20 @@ def NCMB():
         str_ += str(b)
     set_result( bytes([int(str_)]) )
 
+def FLIP(error):
+    # Throw an error with the
+    _,msg = REGI.get_blobstore_entry(BLOBSTORE,error)
+    msg = msg.decode(ENCODING)
+    fprint("{f.red}"+msg+"{r}")
+    YEET()
+
+
+def TOGL(addr):
+    # Toggle the (as-boolean) value at the given address, if 0x00 -> 0x01, if 0x01 -> 0x00
+    if STACK[addr] == 0x00:
+        STACK[addr] = 0x01
+    elif STACK[addr] == 0x01:
+        STACK[addr] = 0x00
 
 # MARK:PREDEF
 
@@ -829,8 +843,23 @@ BLOBSTORE = bytes([
 #         ^i=0  ^Decl.Name=NULL---^  ^type+len-^  ^param
           0x01, 0x43,0x4F,0x4E,0x46, 0b0000_0001, 0x00,
 #         ^i=1  ^Decl.Name=CONF---^  ^type+len-^  ^param
+
     0x17, 0b0011_0000,
 #   ^ETB  ^RES-^conf^
+
+    0x17, 0b0100_0000, *strToBytes("Exception!"),
+#   ^ETB  ^PAT-^conf^  ^ExceptionString
+    0x17, 0b0100_0000, *strToBytes(""),
+#   ^ETB  ^PAT-^conf^  ^ExceptionString
+    0x17, 0b0100_0000, *strToBytes(""),
+#   ^ETB  ^PAT-^conf^  ^ExceptionString
+    0x17, 0b0100_0000, *strToBytes(""),
+#   ^ETB  ^PAT-^conf^  ^ExceptionString
+    0x17, 0b0100_0000, *strToBytes(""),
+#   ^ETB  ^PAT-^conf^  ^ExceptionString
+    0x17, 0b0100_0000, *strToBytes(""),
+#   ^ETB  ^PAT-^conf^  ^ExceptionString
+
     0x17, 0b0000_0000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
 #   ^ETB  ^PAT-^conf^  ^ParentDirToInterpriter
     0x17, 0b0000_0000, *strToBytes(os.path.dirname(os.path.abspath(__file__))),
@@ -1256,11 +1285,11 @@ def combine_byte_file(HEAD,EXEC,BLOBp,REGIp):
     if byteToBinStr(HEAD[0])[-4:].endswith("01"):
         # Reset REGISTRY
         BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE,0x00,bytes([0b10_000000]),bytes([]))
-        # Reset Ix02,Ix03,Ix04,Ix05
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x02,bytes([0b00_000000]),bytes([]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x03,bytes([0b00_000000]),bytes([]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x04,bytes([0b00_000000]),bytes([]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x05,bytes([0b00_000000]),bytes([]))
+        # Reset Ix08,Ix09,Ix0A,Ix0B
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x08,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x09,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x0A,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x0B,bytes([0b00_000000]),bytes([]))
         # Append REGIp
         if len(REGIp) > 0: BLOBSTORE2 = REGI.append(BLOBSTORE2)
         # Combine
@@ -1269,18 +1298,18 @@ def combine_byte_file(HEAD,EXEC,BLOBp,REGIp):
 
     # config 0010 has no BLOBSTORE at al
     elif byteToBinStr(HEAD[0])[-4:].endswith("10"):
-        # Reset Ix02,Ix03,Ix04,Ix05
+        # Reset Ix08,Ix09,Ix0A,Ix0B
         # Combine
         return bytes([*HEAD,*EXEC])
 
     # others have REGI included
     else:
         BLOBSTORE2 = BLOBSTORE
-        # Reset Ix02,Ix03,Ix04,Ix05
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x02,bytes([0b00_000000]),bytes([]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x03,bytes([0b00_000000]),bytes([]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x04,bytes([0b00_000000]),bytes([]))
-        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x05,bytes([0b00_000000]),bytes([]))
+        # Reset Ix08,Ix09,Ix0A,Ix0B
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x08,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x09,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x0A,bytes([0b00_000000]),bytes([]))
+        BLOBSTORE2 = REGI.set_blobstore_entry(BLOBSTORE2,0x0B,bytes([0b00_000000]),bytes([]))
         # Append REGIp
         if len(REGIp) > 0: BLOBSTORE2 = REGI.append(BLOBSTORE2,bytes(REGIp))
         # Combine
@@ -1411,6 +1440,8 @@ declFast([
     ["APAC","ONLY",["HEX","HEX"],APAC,"Padds end of result to len A with chars B, cuts to length A if to long!"],
     ["CCMB","NONE",[],CCMB,"Combines RESULT as chars into a numeral byte, ex: 0x31+0x32 (12) -> 0x0C"],
     ["NCMB","NONE",[],NCMB,"Combines RESULT as nums into a numeral byte, ex: 0x01+0x02 (12) -> 0x0C"],
+    ["FLIP","ONLY",["BLOBINDEX"],FLIP,"Throws the exception defined at the given adress."],
+    ["TOGL","ONLY",["HEXx"],TOGL,"Toggles boolean at given adress."],
 ])
 
 # MARK: InterpFuncs
@@ -1745,10 +1776,10 @@ try:
                 if conf.endswith("01"):
                     # Update regi
                     BLOB = REGI.set_blobstore_entry(BLOB,0x00, *REGI.get_blobstore_entry(BLOBSTORE,0x00) )
-                    # Update 0x02,0x04,0x05 (not 0x03 since it's set bellow)
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x02, *REGI.get_blobstore_entry(BLOBSTORE,0x02) )
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x04, *REGI.get_blobstore_entry(BLOBSTORE,0x04) )
-                    BLOB = REGI.set_blobstore_entry(BLOB,0x05, *REGI.get_blobstore_entry(BLOBSTORE,0x05) )
+                    # Update Ix08,Ix0A,Ix0B (not Ix09 since it's set bellow)
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x08, *REGI.get_blobstore_entry(BLOBSTORE,0x08) )
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x0A, *REGI.get_blobstore_entry(BLOBSTORE,0x0A) )
+                    BLOB = REGI.set_blobstore_entry(BLOB,0x0B, *REGI.get_blobstore_entry(BLOBSTORE,0x0B) )
 
                 # config 0010 has no BLOBSTORE at al, include interpriters to newly-read BLOBSTORE instance
                 elif conf.endswith("10"):
@@ -1757,7 +1788,7 @@ try:
                 # Continue
                 lcu.setConTitle(f"DUMB {FRIENDLY_VERSION} ^| Executing {os.path.basename(pargs.path)}... (Mode:BYTE)")
                 BLOBSTORE = REGI.ensure_blobstore_adresses(BLOB)
-                BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x03,
+                BLOBSTORE = REGI.set_blobstore_entry(BLOBSTORE,0x09,
                     bytes([0b00_000000]),
                     bytes([
                     *strToBytes(os.path.dirname(pargs.path))

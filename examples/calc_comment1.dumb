@@ -17,27 +17,27 @@ POKE Px05 0x78                # Poke "x" at Px00
 
 VOID                          # Start of the addition void
   ADDS Px25 Px2C              # Add numbers from stack at Px25 and Px2C
-VEND Ix06                     # End of addition void, stored at 0x06
+VEND Ix0C                     # End of addition void, stored at 0x06
 
 VOID                          # Start of the subtraction void
   SUBS Px25 Px2C              # Subtract numbers from stack at Px25 and Px2C
-VEND Ix07                     # End of subtraction void, stored at 0x07
+VEND Ix0D                     # End of subtraction void, stored at 0x07
 
 VOID                          # Start of the multiplication void
   MULS Px25 Px2C              # Multiply numbers from stack at Px25 and Px2C
-VEND Ix08                     # End of multiplication void, stored at 0x08
+VEND Ix0E                     # End of multiplication void, stored at 0x08
 
 VOID                          # Start of the division void
   DIVS Px25 Px2C              # Divide numbers from stack at Px25 and Px2C
-VEND Ix09                     # End of multiplication void, stored at 0x09
+VEND Ix0F                     # End of multiplication void, stored at 0x09
 
 VOID                          # Start of the power void
   POWS Px25 Px2C              # Powers a number from stack at Px25 by a number from stacka at Px2C
-VEND Ix0A                     # End of power void, stored at 0x0A
+VEND Ix10                     # End of power void, stored at 0x0A
 
 VOID                          # Start of the exit void
   YEET                        # Exists the program
-VEND Ix0B                     # End of exit void, stored at 0x0B
+VEND Ix11                     # End of exit void, stored at 0x0B
 
 
 # Step 3.1: Start main VOID
@@ -56,7 +56,7 @@ VOID
 
   # Step 3.3: Exit if operation is "x"
 
-  IFIS Ix0B Px1E Px05         # Calls the Ix0B void (exit) if Px1D (op) is Px05 ("x")
+  IFIS Ix11 Px1E Px05         # Calls the Ix0B void (exit) if Px1D (op) is Px05 ("x")
 
 
   # Step 3.4: Ask for the first number
@@ -81,11 +81,11 @@ VOID
 
   # Step 3.6: Call correct operation based on previous input
 
-  IFIS Ix06 Px1E Px00         # Calls the Ix06 void (addition) if Px1E (op) is Px00 ("+")
-  IFIS Ix07 Px1E Px01         # Calls the Ix07 void (subtraction) if Px1E (op) is Px01 ("-")
-  IFIS Ix08 Px1E Px02         # Calls the Ix08 void (multiplication) if Px1E (op) is Px02 ("*")
-  IFIS Ix09 Px1E Px03         # Calls the Ix09 void (division) if Px1E (op) is Px03 ("/")
-  IFIS Ix0A Px1E Px04         # Calls the Ix0A void (exponentiation/power) if Px1E (op) is Px04 ("^")
+  IFIS Ix0C Px1E Px00         # Calls the Ix06 void (addition) if Px1E (op) is Px00 ("+")
+  IFIS Ix0D Px1E Px01         # Calls the Ix07 void (subtraction) if Px1E (op) is Px01 ("-")
+  IFIS Ix0E Px1E Px02         # Calls the Ix08 void (multiplication) if Px1E (op) is Px02 ("*")
+  IFIS Ix0F Px1E Px03         # Calls the Ix09 void (division) if Px1E (op) is Px03 ("/")
+  IFIS Ix10 Px1E Px04         # Calls the Ix0A void (exponentiation/power) if Px1E (op) is Px04 ("^")
 
 
   # Step 3.7: Print result
@@ -97,7 +97,7 @@ VOID
 
 
 # Step 3.8 End main void
-VEND Ix0C                     # End of exit void, stored at 0x0C
+VEND Ix12                     # End of exit void, stored at 0x0C
 
 # Step 4 Loop
-WHIS Ix0C,Px00,Px00           # Infinite while loop since we used pos.0 for storing the operation "x" for later checking, so this is same as `while "x" == "x"`
+WHIS Ix12,Px00,Px00           # Infinite while loop since we used pos.0 for storing the operation "x" for later checking, so this is same as `while "x" == "x"`

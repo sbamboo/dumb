@@ -76,6 +76,7 @@ The first four bits in the config-byte tells its type:
 - `0001`: A function. ("void")
 - `0010`: A method registry.
 - `0011`: A result blob.
+- `0100`: An exception, following bytes are the message string.
 
 The following four bits are configuration *flags*/*modes* for the blob, example how it should be read.
 

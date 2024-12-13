@@ -13,27 +13,27 @@ POKE Px05 0x78                # "x" (exit) operation
 # Step 2: Define the voids for operations
 VOID                          # Start of addition void
   ADDS Px25 Px2C              # Add numbers from Px25 and Px2C
-VEND Ix06                     # Store addition void at Ix06
+VEND Ix0C                     # Store addition void at Ix06
 
 VOID                          # Start of subtraction void
   SUBS Px25 Px2C              # Subtract numbers from Px25 and Px2C
-VEND Ix07                     # Store subtraction void at Ix07
+VEND Ix0D                     # Store subtraction void at Ix07
 
 VOID                          # Start of multiplication void
   MULS Px25 Px2C              # Multiply numbers from Px25 and Px2C
-VEND Ix08                     # Store multiplication void at Ix08
+VEND Ix0E                     # Store multiplication void at Ix08
 
 VOID                          # Start of division void
   DIVS Px25 Px2C              # Divide numbers from Px25 and Px2C
-VEND Ix09                     # Store division void at Ix09
+VEND Ix0F                     # Store division void at Ix09
 
 VOID                          # Start of power void
   POWS Px25 Px2C              # Raise Px25 to the power of Px2C
-VEND Ix0A                     # Store power void at Ix0A
+VEND Ix10                     # Store power void at Ix0A
 
 VOID                          # Start of exit void
   YEET                        # Exit the program
-VEND Ix0B                     # Store exit void at Ix0B
+VEND Ix11                     # Store exit void at Ix0B
 
 # Step 3: Main calculator loop
 VOID
@@ -45,7 +45,7 @@ VOID
   GRES Px1E Px1E              # Store input in Px1E
 
   # Exit if operation is "x"
-  IFIS Ix0B Px1E Px05         # Exit if "x" is pressed
+  IFIS Ix11 Px1E Px05         # Exit if "x" is pressed
 
   # Ask for numbers
   WPOK 0x06 Px1F 0x4E 0x75 0x6D 0x31 0x3F 0x20
@@ -63,18 +63,18 @@ VOID
   GRES Px2C Px2C              # Store in Px2C
 
   # Call correct operation
-  IFIS Ix06 Px1E Px00         # Addition
-  IFIS Ix07 Px1E Px01         # Subtraction
-  IFIS Ix08 Px1E Px02         # Multiplication
-  IFIS Ix09 Px1E Px03         # Division
-  IFIS Ix0A Px1E Px04         # Power
+  IFIS Ix0C Px1E Px00         # Addition
+  IFIS Ix0D Px1E Px01         # Subtraction
+  IFIS Ix0E Px1E Px02         # Multiplication
+  IFIS Ix0F Px1E Px03         # Division
+  IFIS Ix10 Px1E Px04         # Power
 
   # Print result
   TINT                        # Convert result to string
   PRES                        # Print result
   CRES                        # Clear result
 
-VEND Ix0C                     # End main loop
+VEND Ix12                     # End main loop
 
 # Step 4: Infinite while loop since we used pos.0 for storing the operation "x" for later checking, so this is same as `while "x" == "x"`
-WHIS Ix0C,Px00,Px00
+WHIS Ix12,Px00,Px00
